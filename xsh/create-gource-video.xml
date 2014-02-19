@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright © 2011-2012 by Renaud Guillard (dev@nore.fr) -->
+<!-- Distributed under the terms of the MIT License, see LICENSE -->
+<prg:program version="2.0" xmlns:prg="http://xsd.nore.fr/program" xmlns:xi="http://www.w3.org/2001/XInclude">
+	<prg:name>create-gource-video</prg:name>
+	<prg:author>Renaud Guillard</prg:author>
+	<prg:version>2.0</prg:version>
+	<prg:copyright>Copyright © 2012 by Renaud Guillard (dev@nore.fr)</prg:copyright>
+	<prg:license>Distributed under the terms of the MIT License, see LICENSE</prg:license>
+	<prg:documentation>
+		<prg:abstract>Documentation builder</prg:abstract>
+	</prg:documentation>
+	<prg:options>
+		<prg:argument>
+			<prg:databinding>
+				<prg:variable>rootPath</prg:variable>
+			</prg:databinding>
+			<prg:default>.</prg:default>
+			<prg:documentation>
+				<prg:abstract>Project root path</prg:abstract>
+			</prg:documentation>
+			<prg:names>
+				<prg:long>root</prg:long>
+				<prg:short>r</prg:short>
+			</prg:names>
+			<prg:type>
+				<prg:path exist="true">
+					<prg:kinds>
+						<prg:folder></prg:folder>
+					</prg:kinds>
+				</prg:path>
+			</prg:type>
+		</prg:argument>
+		<prg:argument required="true">
+			<prg:databinding>
+				<prg:variable>configurationFolder</prg:variable>
+			</prg:databinding>
+			<prg:documentation>
+				<prg:abstract>Gource configuration folder</prg:abstract>
+			</prg:documentation>
+			<prg:names>
+				<prg:long>configuration</prg:long>
+				<prg:short>c</prg:short>
+			</prg:names>
+			<prg:type>
+				<prg:path exist="true" access="r">
+					<prg:kinds>
+						<prg:folder />
+					</prg:kinds>
+				</prg:path>
+			</prg:type>
+		</prg:argument>
+		<!-- Help -->
+		<xi:include href="../ns-xml/ns/xsh/lib/options/options.xml" xpointer="xmlns(prg=http://xsd.nore.fr/program) xpointer(//prg:switch[@id = 'prg.option.displayHelp'])" />
+	</prg:options>
+
+	<prg:values>
+		<prg:value>
+			<prg:documentation>
+				<prg:abstract>Output file</prg:abstract>
+			</prg:documentation>
+			<prg:type>
+				<prg:path>
+					<prg:kinds>
+						<prg:file />
+					</prg:kinds>
+					<prg:patterns>
+						<prg:pattern>
+							<prg:name>Mp4 container</prg:name>
+							<prg:rules>
+								<prg:rule>
+									<prg:endWith>mp4</prg:endWith>
+								</prg:rule>
+							</prg:rules>
+						</prg:pattern>
+					</prg:patterns>
+				</prg:path>
+			</prg:type>
+		</prg:value>
+	</prg:values>
+</prg:program>
