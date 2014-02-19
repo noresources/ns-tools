@@ -1,0 +1,3 @@
+[submodule "ns-xml"]
+	path = ns-xml
+	url = https://noresources@bitbucket.org/noresources/ns-xml.git
