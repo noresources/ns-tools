@@ -693,9 +693,7 @@ userPicturePath="${configurationFolder}"
 aliasesFile="${configurationFolder}/aliases.cfg"
 if [ -f "${aliasesFile}" ]
 then
-	#userPicturePath=$(ns_mktempdir "$(basename "${0}")")
-	userPicturePath="${rootPath}/bleee"
-	mkdir -p "${userPicturePath}" 
+	userPicturePath=$(ns_mktempdir "$(basename "${0}")")
 	while read png
 	do
 		ln -sf "${png}" "${userPicturePath}/$(basename "${png}")"
