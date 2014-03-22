@@ -706,8 +706,7 @@ EOF
 	do
 		name="$(echo ${line} | cut -f 1 -d"=")"
 		png="$(echo ${line} | cut -f 2 -d"=")"
-		ln -sf "${png}.png" "${userPicturePath}/${name}.png"
-		#cp -f "${userPicturePath}/${png}.png" "${userPicturePath}/${name}.png"
+		echo "${name}" | grep -q "/" || echo ln -sf "${png}.png" "${userPicturePath}/${name}.png"
 	done < "${aliasesFile}"
 fi
 
