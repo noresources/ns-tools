@@ -17,31 +17,28 @@ usage()
 	echo "$(basename ${0})"
 }
 
-nsPath="${scriptPath}/../ns-xml"
+nsxmlPath="${scriptPath}/../../ns-xml"
 cwd="$(pwd)"
-
-[ -d "${nsPath}" ] || error "Invalid ns-xml path"
-
-cd "${nsPath}"
-nsPath="$(pwd)"
+cd "${nsxmlPath}"
+nsxmlPath="$(pwd)"
 cd "${cwd}"
 
-shBuilder="${nsPath}/ns/sh/build-shellscript.sh"
-xulBuilder="${nsPath}/ns/sh/build-xulapp.sh"
+shBuilder="${nsxmlPath}/ns/sh/build-shellscript.sh"
+xulBuilder="${nsxmlPath}/ns/sh/build-xulapp.sh"
 
 [ -x "${shBuilder}" ] || error "Error: ${shBuilder} not found. Please provide ns-xml project location as first command line argument"
 scriptPath="$(dirname "${0}")"
 cd "${scriptPath}"
 scriptPath="$(pwd)"
 
-nstoolsPath="${scriptPath}/.."
+nstoolsPath="${scriptPath}/../.."
 cd "${nstoolsPath}"
 nstoolsPath="$(pwd)"
 cd "${cwd}"
 
 resourceBasePath="${nstoolsPath}/xsh"
 
-find "${resourceBasePath}" -mindepth 1 -name "*.xsh" | while read f
+while read f
 do
 	b="$(basename "${f}")"
 	subTree="${f#${resourceBasePath}/}"
@@ -61,5 +58,7 @@ do
 		echo "Failed to build Shell ${f%xsh}"
 		exit 1
 	fi
-done
+done << EOF
+$(find "${resourceBasePath}" -mindepth 1 -name "*.xsh")
+EOF
 
