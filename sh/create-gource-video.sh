@@ -14,16 +14,26 @@ cat << 'EOFUSAGE'
 create-gource-video: Documentation builder
 Usage: 
   create-gource-video [-r <path>] -c <path> [--help] [Output file]
-  With:
+  Options:
     -r, --root: Project root path  
       Default value: .
     -c, --configuration: Gource configuration folder
     --help: Display program usage
+  Positional arguments:
+    1. Output file
 EOFUSAGE
 }
 
 # Program parameter parsing
-parser_shell="$(readlink /proc/$$/exe | sed "s/.*\/\([a-z]*\)[0-9]*/\1/g")"
+parser_program_author="Renaud Guillard"
+parser_program_version="2.0"
+if [ -r /proc/$$/exe ]
+then
+	parser_shell="$(readlink /proc/$$/exe | sed "s/.*\/\([a-z]*\)[0-9]*/\1/g")"
+else
+	parser_shell="$(basename "$(ps -p $$ -o command= | cut -f 1 -d' ')")"
+fi
+
 parser_input=("${@}")
 parser_itemcount=${#parser_input[*]}
 parser_startindex=0
@@ -41,14 +51,14 @@ PARSER_SC_ERROR=1
 PARSER_SC_UNKNOWN=2
 PARSER_SC_SKIP=3
 # Compatibility with shell which use "1" as start index
-[ "${parser_shell}" = "zsh" ] && parser_startindex=1
+[ "${parser_shell}" = 'zsh' ] && parser_startindex=1
 parser_itemcount=$(expr ${parser_startindex} + ${parser_itemcount})
 parser_index=${parser_startindex}
 
 # Required global options
 # (Subcommand required options will be added later)
+parser_required[$(expr ${#parser_required[*]} + ${parser_startindex})]="G_2_configuration:--configuration:"
 
-parser_required[$(expr ${#parser_required[*]} + ${parser_startindex})]="G_2_configuration:--configuration"
 # Switch options
 displayHelp=false
 # Single argument options
@@ -59,33 +69,27 @@ function parse_addwarning
 {
 	typeset var message="${1}"
 	typeset var m="[${parser_option}:${parser_index}:${parser_subindex}] ${message}"
-	typeset var c=${#parser_warnings[*]}
-	c=$(expr ${c} + ${parser_startindex})
-	parser_warnings[${c}]="${m}"
+	parser_warnings[$(expr ${#parser_warnings[*]} + ${parser_startindex})]="${m}"
 }
 function parse_adderror
 {
 	typeset var message="${1}"
 	typeset var m="[${parser_option}:${parser_index}:${parser_subindex}] ${message}"
-	typeset var c=${#parser_errors[*]}
-	c=$(expr ${c} + ${parser_startindex})
-	parser_errors[${c}]="${m}"
+	parser_errors[$(expr ${#parser_errors[*]} + ${parser_startindex})]="${m}"
 }
 function parse_addfatalerror
 {
 	typeset var message="${1}"
 	typeset var m="[${parser_option}:${parser_index}:${parser_subindex}] ${message}"
-	typeset var c=${#parser_errors[*]}
-	c=$(expr ${c} + ${parser_startindex})
-	parser_errors[${c}]="${m}"
+	parser_errors[$(expr ${#parser_errors[*]} + ${parser_startindex})]="${m}"
 	parser_aborted=true
 }
 
 function parse_displayerrors
 {
-	for ((i=${parser_startindex};${i}<${#parser_errors[*]};i++))
+	for error in "${parser_errors[@]}"
 	do
-		echo -e "\t- ${parser_errors[${i}]}"
+		echo -e "\t- ${error}"
 	done
 }
 
@@ -103,33 +107,83 @@ function parse_pathaccesscheck
 	done
 	return 0
 }
+function parse_addrequiredoption
+{
+	typeset var id="${1}"
+	typeset var tail="${2}"
+	typeset var o=
+	for o in "${parser_required[@]}"
+	do
+		typeset var idPart="$(echo "${o}" | cut -f 1 -d":")"
+		[ "${id}" = "${idPart}" ] && return 0
+	done
+	parser_required[$(expr ${#parser_required[*]} + ${parser_startindex})]="${id}:${tail}"
+}
 function parse_setoptionpresence
 {
-	for ((i=${parser_startindex};${i}<$(expr ${parser_startindex} + ${#parser_required[*]});i++))
+	typeset var _e_found=false
+	typeset var _e=
+	for _e in "${parser_present[@]}"
 	do
-		typeset var idPart="$(echo "${parser_required[${i}]}" | cut -f 1 -d":" )"
-		if [ "${idPart}" = "${1}" ]
+		if [ "${_e}" = "${1}" ]
 		then
-			parser_required[${i}]=""
-			return 0
+			_e_found=true; break
 		fi
 	done
-	return 1
+	if ${_e_found}
+	then
+		return
+	else
+		parser_present[$(expr ${#parser_present[*]} + ${parser_startindex})]="${1}"
+		case "${1}" in
+		
+		esac
+	fi
+}
+function parse_isoptionpresent
+{
+	typeset var _e_found=false
+	typeset var _e=
+	for _e in "${parser_present[@]}"
+	do
+		if [ "${_e}" = "${1}" ]
+		then
+			_e_found=true; break
+		fi
+	done
+	if ${_e_found}
+	then
+		return 0
+	else
+		return 1
+	fi
 }
 function parse_checkrequired
 {
 	# First round: set default values
-	for ((i=${parser_startindex};${i}<$(expr ${parser_startindex} + ${#parser_required[*]});i++))
+	typeset var o=
+	for o in "${parser_required[@]}"
 	do
-		typeset var todoPart="$(echo "${parser_required[${i}]}" | cut -f 3 -d":" )"
+		typeset var todoPart="$(echo "${o}" | cut -f 3 -d":")"
 		[ -z "${todoPart}" ] || eval "${todoPart}"
 	done
+	[ ${#parser_required[*]} -eq 0 ] && return 0
 	typeset var c=0
-	for ((i=${parser_startindex};${i}<$(expr ${parser_startindex} + ${#parser_required[*]});i++))
+	for o in "${parser_required[@]}"
 	do
-		if [ ! -z "${parser_required[${i}]}" ]
+		typeset var idPart="$(echo "${o}" | cut -f 1 -d":")"
+		typeset var _e_found=false
+		typeset var _e=
+		for _e in "${parser_present[@]}"
+		do
+			if [ "${_e}" = "${idPart}" ]
+			then
+				_e_found=true; break
+			fi
+		done
+		if ! (${_e_found})
 		then
-			typeset var displayPart="$(echo "${parser_required[${i}]}" | cut -f 2 -d":" )"
+			typeset var displayPart="$(echo "${o}" | cut -f 2 -d":")"
 			parser_errors[$(expr ${#parser_errors[*]} + ${parser_startindex})]="Missing required option ${displayPart}"
 			c=$(expr ${c} + 1)
 		fi
@@ -140,7 +194,7 @@ function parse_setdefaultarguments
 {
 	typeset var parser_set_default=false
 	# rootPath
-	if [ -z "${rootPath}" ]
+	if ! parse_isoptionpresent G_1_root
 	then
 		parser_set_default=true
 		if ${parser_set_default}
@@ -192,7 +246,7 @@ function parse_enumcheck
 function parse_addvalue
 {
 	typeset var position=${#parser_values[*]}
-	typeset var value
+	typeset var value=
 	if [ $# -gt 0 ] && [ ! -z "${1}" ]; then value="${1}"; else return ${PARSER_ERROR}; fi
 	shift
 	if [ -z "${parser_subcommand}" ]
@@ -217,7 +271,7 @@ function parse_addvalue
 function parse_process_subcommand_option
 {
 	parser_item="${parser_input[${parser_index}]}"
-	if [ -z "${parser_item}" ] || [ "${parser_item:0:1}" != "-" ] || [ "${parser_item}" = "--" ]
+	if [ -z "${parser_item}" ] || [ "${parser_item:0:1}" != "-" ] || [ "${parser_item}" = '--' ]
 	then
 		return ${PARSER_SC_SKIP}
 	fi
@@ -226,7 +280,7 @@ function parse_process_subcommand_option
 }
 function parse_process_option
 {
-	if [ ! -z "${parser_subcommand}" ] && [ "${parser_item}" != "--" ]
+	if [ ! -z "${parser_subcommand}" ] && [ "${parser_item}" != '--' ]
 	then
 		parse_process_subcommand_option && return ${PARSER_OK}
 		[ ${parser_index} -ge ${parser_itemcount} ] && return ${PARSER_OK}
@@ -236,9 +290,9 @@ function parse_process_option
 	
 	[ -z "${parser_item}" ] && return ${PARSER_OK}
 	
-	if [ "${parser_item}" = "--" ]
+	if [ "${parser_item}" = '--' ]
 	then
-		for ((a=$(expr ${parser_index} + 1);${a}<${parser_itemcount};a++))
+		for a in {$(expr ${parser_index} + 1)..$(expr ${parser_itemcount} - 1)}
 		do
 			parse_addvalue "${parser_input[${a}]}"
 		done
@@ -250,20 +304,22 @@ function parse_process_option
 	elif [ "${parser_item:0:2}" = "\-" ]
 	then
 		parse_addvalue "${parser_item:1}"
-	elif [ "${parser_item:0:2}" = "--" ] 
+	elif [ "${parser_item:0:2}" = '--' ] 
 	then
 		parser_option="${parser_item:2}"
-		if echo "${parser_option}" | grep "=" 1>/dev/null 2>&1
+		parser_optionhastail=false
+		if echo "${parser_option}" | grep '=' 1>/dev/null 2>&1
 		then
+			parser_optionhastail=true
 			parser_optiontail="$(echo "${parser_option}" | cut -f 2- -d"=")"
 			parser_option="$(echo "${parser_option}" | cut -f 1 -d"=")"
 		fi
 		
 		case "${parser_option}" in
 		root)
-			if [ ! -z "${parser_optiontail}" ]
+			if ${parser_optionhastail}
 			then
-				parser_item="${parser_optiontail}"
+				parser_item=${parser_optiontail}
 			else
 				parser_index=$(expr ${parser_index} + 1)
 				if [ ${parser_index} -ge ${parser_itemcount} ]
@@ -273,7 +329,7 @@ function parse_process_option
 				fi
 				
 				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = "--" ]
+				if [ "${parser_item}" = '--' ]
 				then
 					parse_adderror "End of option marker found - Argument expected"
 					parser_index=$(expr ${parser_index} - 1)
@@ -283,6 +339,7 @@ function parse_process_option
 			
 			parser_subindex=0
 			parser_optiontail=''
+			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
 			if [ ! -e "${parser_item}" ]
 			then
@@ -300,9 +357,9 @@ function parse_process_option
 			parse_setoptionpresence G_1_root
 			;;
 		configuration)
-			if [ ! -z "${parser_optiontail}" ]
+			if ${parser_optionhastail}
 			then
-				parser_item="${parser_optiontail}"
+				parser_item=${parser_optiontail}
 			else
 				parser_index=$(expr ${parser_index} + 1)
 				if [ ${parser_index} -ge ${parser_itemcount} ]
@@ -312,7 +369,7 @@ function parse_process_option
 				fi
 				
 				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = "--" ]
+				if [ "${parser_item}" = '--' ]
 				then
 					parse_adderror "End of option marker found - Argument expected"
 					parser_index=$(expr ${parser_index} - 1)
@@ -322,6 +379,7 @@ function parse_process_option
 			
 			parser_subindex=0
 			parser_optiontail=''
+			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
 			if [ ! -e "${parser_item}" ]
 			then
@@ -345,9 +403,9 @@ function parse_process_option
 			parse_setoptionpresence G_2_configuration
 			;;
 		help)
-			if [ ! -z "${parser_optiontail}" ]
+			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
 			then
-				parse_adderror "Unexpected argument (ignored) for option \"${parser_option}\""
+				parse_adderror "Option --${parser_option} does not allow an argument"
 				parser_optiontail=''
 				return ${PARSER_ERROR}
 			fi
@@ -374,7 +432,7 @@ function parse_process_option
 		r)
 			if [ ! -z "${parser_optiontail}" ]
 			then
-				parser_item="${parser_optiontail}"
+				parser_item=${parser_optiontail}
 			else
 				parser_index=$(expr ${parser_index} + 1)
 				if [ ${parser_index} -ge ${parser_itemcount} ]
@@ -384,7 +442,7 @@ function parse_process_option
 				fi
 				
 				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = "--" ]
+				if [ "${parser_item}" = '--' ]
 				then
 					parse_adderror "End of option marker found - Argument expected"
 					parser_index=$(expr ${parser_index} - 1)
@@ -394,6 +452,7 @@ function parse_process_option
 			
 			parser_subindex=0
 			parser_optiontail=''
+			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
 			if [ ! -e "${parser_item}" ]
 			then
@@ -413,7 +472,7 @@ function parse_process_option
 		c)
 			if [ ! -z "${parser_optiontail}" ]
 			then
-				parser_item="${parser_optiontail}"
+				parser_item=${parser_optiontail}
 			else
 				parser_index=$(expr ${parser_index} + 1)
 				if [ ${parser_index} -ge ${parser_itemcount} ]
@@ -423,7 +482,7 @@ function parse_process_option
 				fi
 				
 				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = "--" ]
+				if [ "${parser_item}" = '--' ]
 				then
 					parse_adderror "End of option marker found - Argument expected"
 					parser_index=$(expr ${parser_index} - 1)
@@ -433,6 +492,7 @@ function parse_process_option
 			
 			parser_subindex=0
 			parser_optiontail=''
+			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
 			if [ ! -e "${parser_item}" ]
 			then
@@ -477,6 +537,7 @@ function parse_process_option
 function parse
 {
 	parser_aborted=false
+	parser_isfirstpositionalargument=true
 	while [ ${parser_index} -lt ${parser_itemcount} ] && ! ${parser_aborted}
 	do
 		parse_process_option
@@ -504,7 +565,7 @@ function parse
 
 function ns_isdir
 {
-	typeset var inputPath
+	typeset var inputPath=
 	if [ $# -gt 0 ]
 	then
 		inputPath="${1}"
@@ -514,7 +575,7 @@ function ns_isdir
 }
 function ns_issymlink
 {
-	typeset var inputPath
+	typeset var inputPath=
 	if [ $# -gt 0 ]
 	then
 		inputPath="${1}"
@@ -524,35 +585,45 @@ function ns_issymlink
 }
 function ns_realpath
 {
-	typeset var inputPath
+	typeset var __ns_realpath_in=
 	if [ $# -gt 0 ]
 	then
-		inputPath="${1}"
+		__ns_realpath_in="${1}"
 		shift
 	fi
-	typeset var cwd="$(pwd)"
-	[ -d "${inputPath}" ] && cd "${inputPath}" && inputPath="."
-	while [ -h "${inputPath}" ] ; do inputPath="$(readlink "${inputPath}")"; done
+	typeset var __ns_realpath_rl=
+	typeset var __ns_realpath_cwd="$(pwd)"
+	[ -d "${__ns_realpath_in}" ] && cd "${__ns_realpath_in}" && __ns_realpath_in="."
+	while [ -h "${__ns_realpath_in}" ]
+	do
+		__ns_realpath_rl="$(readlink "${__ns_realpath_in}")"
+		if [ "${__ns_realpath_rl#/}" = "${__ns_realpath_rl}" ]
+		then
+			__ns_realpath_in="$(dirname "${__ns_realpath_in}")/${__ns_realpath_rl}"
+		else
+			__ns_realpath_in="${__ns_realpath_rl}"
+		fi
+	done
 	
-	if [ -d "${inputPath}" ]
+	if [ -d "${__ns_realpath_in}" ]
 	then
-		inputPath="$(cd -P "$(dirname "${inputPath}")" && pwd)"
+		__ns_realpath_in="$(cd -P "$(dirname "${__ns_realpath_in}")" && pwd)"
 	else
-		inputPath="$(cd -P "$(dirname "${inputPath}")" && pwd)/$(basename "${inputPath}")"
+		__ns_realpath_in="$(cd -P "$(dirname "${__ns_realpath_in}")" && pwd)/$(basename "${__ns_realpath_in}")"
 	fi
 	
-	cd "${cwd}" 1>/dev/null 2>&1
-	echo "${inputPath}"
+	cd "${__ns_realpath_cwd}" 1>/dev/null 2>&1
+	echo "${__ns_realpath_in}"
 }
 function ns_relativepath
 {
-	typeset var from
+	typeset var from=
 	if [ $# -gt 0 ]
 	then
 		from="${1}"
 		shift
 	fi
-	typeset var base
+	typeset var base=
 	if [ $# -gt 0 ]
 	then
 		base="${1}"
@@ -566,8 +637,6 @@ function ns_relativepath
 	[ -d "${base}" ] || return 3
 	from="$(ns_realpath "${from}")"
 	base="$(ns_realpath "${base}")"
-	#echo from: $from
-	#echo base: $base
 	c=0
 	sub="${base}"
 	newsub=""
@@ -589,68 +658,107 @@ function ns_relativepath
 }
 function ns_mktemp
 {
-	typeset var key
+	typeset var __ns_mktemp_template=
 	if [ $# -gt 0 ]
 	then
-		key="${1}"
+		__ns_mktemp_template="${1}"
 		shift
 	else
-		key="$(date +%s)"
+		__ns_mktemp_template="$(date +%s)-XXXX"
 	fi
-	if [ "$(uname -s)" == "Darwin" ]
+	typeset var __ns_mktemp_xcount=
+	if which 'mktemp' 1>/dev/null 2>&1
 	then
-		#Use key as a prefix
-		mktemp -t "${key}"
+		# Auto-fix template
+		__ns_mktemp_xcount=0
+		which 'grep' 1>/dev/null 2>&1 \
+		&& which 'wc' 1>/dev/null 2>&1 \
+		&& __ns_mktemp_xcount=$(grep -o X <<< "${__ns_mktemp_template}" | wc -c)
+		while [ ${__ns_mktemp_xcount} -lt 3 ]
+		do
+			__ns_mktemp_template="${__ns_mktemp_template}X"
+			__ns_mktemp_xcount=$(expr ${__ns_mktemp_xcount} + 1)
+		done
+		mktemp -t "${__ns_mktemp_template}" 2>/dev/null
 	else
-		#Use key as a suffix
-		mktemp --suffix "${key}"
+	typeset var __ns_mktemp_root=
+	# Fallback to a manual solution
+		for __ns_mktemp_root in "${TMPDIR}" "${TMP}" '/var/tmp' '/tmp'
+		do
+			[ -d "${__ns_mktemp_root}" ] && break
+		done
+		[ -d "${__ns_mktemp_root}" ] || return 1
+	typeset var __ns_mktemp="/${__ns_mktemp_root}/${__ns_mktemp_template}.$(date +%s)-${RANDOM}"
+	touch "${__ns_mktemp}" 1>/dev/null 2>&1 && echo "${__ns_mktemp}"
 	fi
 }
 function ns_mktempdir
 {
-	typeset var key
+	typeset var __ns_mktemp_template=
 	if [ $# -gt 0 ]
 	then
-		key="${1}"
+		__ns_mktemp_template="${1}"
 		shift
 	else
-		key="$(date +%s)"
+		__ns_mktemp_template="$(date +%s)-XXXX"
 	fi
-	if [ "$(uname -s)" == "Darwin" ]
+	typeset var __ns_mktemp_xcount=
+	if which 'mktemp' 1>/dev/null 2>&1
 	then
-		#Use key as a prefix
-		mktemp -d -t "${key}"
+		# Auto-fix template
+		__ns_mktemp_xcount=0
+		which 'grep' 1>/dev/null 2>&1 \
+		&& which 'wc' 1>/dev/null 2>&1 \
+		&& __ns_mktemp_xcount=$(grep -o X <<< "${__ns_mktemp_template}" | wc -c)
+		
+		while [ ${__ns_mktemp_xcount} -lt 3 ]
+		do
+			__ns_mktemp_template="${__ns_mktemp_template}X"
+			__ns_mktemp_xcount=$(expr ${__ns_mktemp_xcount} + 1)
+		done
+		mktemp -d -t "${__ns_mktemp_template}" 2>/dev/null
 	else
-		#Use key as a suffix
-		mktemp -d --suffix "${key}"
+	typeset var __ns_mktemp_root=
+	# Fallback to a manual solution
+		for __ns_mktemp_root in "${TMPDIR}" "${TMP}" '/var/tmp' '/tmp'
+		do
+			[ -d "${__ns_mktemp_root}" ] && break
+		done
+		[ -d "${__ns_mktemp_root}" ] || return 1
+	typeset var __ns_mktempdir="/${__ns_mktemp_root}/${__ns_mktemp_template}.$(date +%s)-${RANDOM}"
+	mkdir -p "${__ns_mktempdir}" 1>/dev/null 2>&1 && echo "${__ns_mktempdir}"
 	fi
 }
 function ns_which
 {
-	if [ "$(uname -s)" == "Darwin" ]
+	typeset var result=1
+	if [ "$(uname -s)" = 'Darwin' ]
 	then
-		which "${@}"
+		which "${@}" && result=0
 	else
 	typeset var silent="false"
-	typeset var args
+	typeset var args=
 	while [ ${#} -gt 0 ]
 		do
-			if [ "${1}" = "-s" ]
+			if [ "${1}" = '-s' ]
 			then 
 				silent=true
 			else
-				args=("${args[@]}" "${1}")
+				[ -z "${args}" ] \
+					&& args="${1}" \
+					|| args=("${args[@]}" "${1}")
 			fi
 			shift
 		done
 		
 		if ${silent}
 		then
-			which "${args[@]}" 1>/dev/null 2>&1
+			which "${args[@]}" 1>/dev/null 2>&1 && result=0
 		else
-			which "${args[@]}"
+			which "${args[@]}" && result=0
 		fi
 	fi
+	return ${result}
 }
 scriptFilePath="$(ns_realpath "${0}")"
 scriptPath="$(dirname "${scriptFilePath}")"
