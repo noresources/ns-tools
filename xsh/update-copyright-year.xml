@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- {} -->
+<prg:program xmlns:prg="http://xsd.nore.fr/program" xmlns:xi="http://www.w3.org/2001/XInclude" version="2.0">
+	<prg:name>update-copyright-year</prg:name>
+	<prg:author>renaud</prg:author>
+	<prg:version>1.0.0</prg:version>
+	<prg:copyright>Copyright © 2018 by renaud</prg:copyright>
+	<prg:documentation>
+		<prg:abstract>Update copyright year</prg:abstract>
+	</prg:documentation>
+	<prg:options>
+		<prg:switch>
+			<prg:databinding>
+				<prg:variable>ascii</prg:variable>
+			</prg:databinding>
+			<prg:documentation>
+				<prg:abstract>ASCII copyright mark</prg:abstract>
+				<prg:details>Replace the copyright symbol "©" by the ASCII representation "(c)"</prg:details>
+			</prg:documentation>
+			<prg:names>
+				<prg:long>ascii</prg:long>
+				<prg:short>a</prg:short>
+			</prg:names>
+		</prg:switch>
+		<prg:switch>
+			<prg:databinding>
+				<prg:variable>recursive</prg:variable>
+			</prg:databinding>
+			<prg:documentation>
+				<prg:abstract>Recursive</prg:abstract>
+			</prg:documentation>
+			<prg:names>
+				<prg:long>recursive</prg:long>
+				<prg:short>r</prg:short>
+			</prg:names>
+		</prg:switch>
+		<!-- Help -->
+		<xi:include href="../ns-xml/ns/xsh/lib/options/options.xml" xpointer="xmlns(prg=http://xsd.nore.fr/program) xpointer(//prg:switch[@id = 'prg.option.displayHelp'])" />
+	</prg:options>
+	<prg:values>
+		<prg:other>
+			<prg:documentation>
+				<prg:abstract>Path(s)</prg:abstract>
+			</prg:documentation>
+			<prg:type>
+				<prg:path exist="true">
+					<prg:kinds>
+						<prg:file />
+						<prg:folder />
+					</prg:kinds>
+				</prg:path>
+			</prg:type>
+		</prg:other>
+	</prg:values>
+</prg:program>
