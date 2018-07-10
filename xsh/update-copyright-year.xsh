@@ -11,14 +11,8 @@
 			<sh:body>
 			<sh:local name="prefixPattern">((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)</sh:local>
 <![CDATA[
-sed -E 's,('${prefixPattern}'[0-9]{4}-)[0-9]{4}([[:space:]]|$),\1'${year}'\6,g' "${1}" > "${temporaryFile}"
-chmod --reference="${1}" "${temporaryFile}"
-chown --reference="${1}" "${temporaryFile}"
-if ns_which -s getfactl
-then
-	getfacl "${1}" | setfacl -bnM - "${temporaryFile}"
-fi
-
+cp -a "${1}" "${temporaryFile}"
+ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4}-)[0-9]{4}([[:space:]]|$),\1'${year}'\6,g' "${temporaryFile}"
 ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})([[:space:]]|$),\1'-${year}'\6,g' "${temporaryFile}"
 ns_sed_inplace -E 's,('${prefixPattern}${year}')-'${year}'([[:space:]]|$),\1\6,g' "${temporaryFile}"
 
