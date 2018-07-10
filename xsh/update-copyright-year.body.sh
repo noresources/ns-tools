@@ -29,6 +29,13 @@ trap on_exit EXIT
 year="$(date +'%Y')"
 temporaryFile="$(ns_mktemp ucy)"
 
+
+p='((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)'
+p="=(sed 's,\\,,g')"
+echo "$p"
+
+exit 0
+
 for path in "${parser_values[@]}"
 do
 	if [ -f "${path}" ]
