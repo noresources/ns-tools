@@ -29,12 +29,29 @@ trap on_exit EXIT
 year="$(date +'%Y')"
 temporaryFile="$(ns_mktemp ucy)"
 
+if [ ${prefixPatternGroupCount} -lt 0 ]
+then
+	p="${prefixPattern}"
+	p="$(sed -E 's,\\\\,,g;s,\\\(,,g;s,[^(],,g' <<< "${p}")"
+	prefixPatternGroupCount=$(echo -n "${p}" | wc -c)
+fi
 
-p='((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)'
-p="=(sed 's,\\,,g')"
-echo "$p"
+if [ ${asciiPatternGroupIndex} -lt 0 ]
+then
+	p="${prefixPattern}"
+	p="$(sed -E 's,\\\\,,g;s,\\\(,,g;s,[^(@],,g;s,(.*)@.*,\1,g' <<< "${p}")"
+	asciiPatternGroupIndex=$(echo -n "${p}" | wc -c)
+fi
 
-exit 0
+prefixPattern="$( sed 's,[[:space:]],[[:space:]],g' <<< "${prefixPattern}")"
+
+if ${preview}
+then
+	printf "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
+	printf "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
+	printf "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
+	#exit 0
+fi
 
 for path in "${parser_values[@]}"
 do

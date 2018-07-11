@@ -12,12 +12,27 @@ usage()
 cat << 'EOFUSAGE'
 update-copyright-year: Update copyright year
 Usage: 
-  update-copyright-year [-ar] [--help] [Path(s) ...]
+  update-copyright-year [-ar] [-Y <...> -P <...> -C <...> -A <...>] [--help] [--preview] [Path(s) ...]
   Options:
     -a, --ascii: ASCII copyright mark
       Replace the copyright symbol "©" by the ASCII representation "(c)"
     -r, --recursive: Recursive
+    Advanced
+      -Y, --year-separator: Year range separator  
+        Default value:  - 
+      -P, --prefix-pattern: Copyright prefix pattern
+        POSIX sed pattern (-E)  
+        Default value: 
+        ((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)
+      -C, --prefix-group-count: 
+        If -1, the group count is guessed from the prefix pattern  
+        Default value: -1
+      -A, --ascii-group-index: 
+        If -1, the group count is guessed from the prefix pattern  
+        Default value: -1
+    
     --help: Display program usage
+    --preview:
   Positional arguments:
     1. Path(s)
 EOFUSAGE
@@ -61,6 +76,12 @@ parser_index=${parser_startindex}
 ascii=false
 recursive=false
 displayHelp=false
+preview=false
+# Single argument options
+yearRangeSeparator=
+prefixPattern=
+prefixPatternGroupCount=
+asciiPatternGroupIndex=
 
 parse_addwarning()
 {
@@ -133,6 +154,8 @@ parse_setoptionpresence()
 	else
 		parser_present[$(expr ${#parser_present[*]} + ${parser_startindex})]="${1}"
 		case "${1}" in
+		G_3_g)
+			;;
 		
 		esac
 	fi
@@ -190,6 +213,46 @@ parse_checkrequired()
 parse_setdefaultarguments()
 {
 	local parser_set_default=false
+	# yearRangeSeparator
+	if ! parse_isoptionpresent G_3_g_1_year_separator
+	then
+		parser_set_default=true
+		if ${parser_set_default}
+		then
+			yearRangeSeparator=' - '
+			parse_setoptionpresence G_3_g_1_year_separator;parse_setoptionpresence G_3_g
+		fi
+	fi
+	# prefixPattern
+	if ! parse_isoptionpresent G_3_g_2_prefix_pattern
+	then
+		parser_set_default=true
+		if ${parser_set_default}
+		then
+			prefixPattern='((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)'
+			parse_setoptionpresence G_3_g_2_prefix_pattern;parse_setoptionpresence G_3_g
+		fi
+	fi
+	# prefixPatternGroupCount
+	if ! parse_isoptionpresent G_3_g_3_prefix_group_count
+	then
+		parser_set_default=true
+		if ${parser_set_default}
+		then
+			prefixPatternGroupCount='-1'
+			parse_setoptionpresence G_3_g_3_prefix_group_count;parse_setoptionpresence G_3_g
+		fi
+	fi
+	# asciiPatternGroupIndex
+	if ! parse_isoptionpresent G_3_g_4_ascii_group_index
+	then
+		parser_set_default=true
+		if ${parser_set_default}
+		then
+			asciiPatternGroupIndex='-1'
+			parse_setoptionpresence G_3_g_4_ascii_group_index;parse_setoptionpresence G_3_g
+		fi
+	fi
 }
 parse_checkminmax()
 {
@@ -337,7 +400,133 @@ parse_process_option()
 				return ${PARSER_ERROR}
 			fi
 			displayHelp=true
-			parse_setoptionpresence G_3_help
+			parse_setoptionpresence G_4_help
+			;;
+		preview)
+			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
+			then
+				parse_adderror "Option --${parser_option} does not allow an argument"
+				parser_optiontail=''
+				return ${PARSER_ERROR}
+			fi
+			preview=true
+			parse_setoptionpresence G_5_preview
+			;;
+		year-separator)
+			# Group checks
+			if ${parser_optionhastail}
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			yearRangeSeparator="${parser_item}"
+			parse_setoptionpresence G_3_g_1_year_separator;parse_setoptionpresence G_3_g
+			;;
+		prefix-pattern)
+			# Group checks
+			if ${parser_optionhastail}
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			prefixPattern="${parser_item}"
+			parse_setoptionpresence G_3_g_2_prefix_pattern;parse_setoptionpresence G_3_g
+			;;
+		prefix-group-count)
+			# Group checks
+			if ${parser_optionhastail}
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			prefixPatternGroupCount="${parser_item}"
+			parse_setoptionpresence G_3_g_3_prefix_group_count;parse_setoptionpresence G_3_g
+			;;
+		ascii-group-index)
+			# Group checks
+			if ${parser_optionhastail}
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			asciiPatternGroupIndex="${parser_item}"
+			parse_setoptionpresence G_3_g_4_ascii_group_index;parse_setoptionpresence G_3_g
 			;;
 		*)
 			parse_addfatalerror "Unknown option \"${parser_option}\""
@@ -363,6 +552,122 @@ parse_process_option()
 		r)
 			recursive=true
 			parse_setoptionpresence G_2_recursive
+			;;
+		Y)
+			# Group checks
+			if [ ! -z "${parser_optiontail}" ]
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			yearRangeSeparator="${parser_item}"
+			parse_setoptionpresence G_3_g_1_year_separator;parse_setoptionpresence G_3_g
+			;;
+		P)
+			# Group checks
+			if [ ! -z "${parser_optiontail}" ]
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			prefixPattern="${parser_item}"
+			parse_setoptionpresence G_3_g_2_prefix_pattern;parse_setoptionpresence G_3_g
+			;;
+		C)
+			# Group checks
+			if [ ! -z "${parser_optiontail}" ]
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			prefixPatternGroupCount="${parser_item}"
+			parse_setoptionpresence G_3_g_3_prefix_group_count;parse_setoptionpresence G_3_g
+			;;
+		A)
+			# Group checks
+			if [ ! -z "${parser_optiontail}" ]
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			asciiPatternGroupIndex="${parser_item}"
+			parse_setoptionpresence G_3_g_4_ascii_group_index;parse_setoptionpresence G_3_g
 			;;
 		*)
 			parse_addfatalerror "Unknown option \"${parser_option}\""
@@ -719,16 +1024,19 @@ ns_sed_inplace()
 }
 process_file()
 {
-	local prefixPattern="((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)"
+	local _postfixGroup="$(expr ${prefixPatternGroupCount} + 2)"
 	cp -a "${1}" "${temporaryFile}"
-	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4}-)[0-9]{4}([[:space:]]|$),\1'${year}'\6,g' "${temporaryFile}"
-	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})([[:space:]]|$),\1'-${year}'\6,g' "${temporaryFile}"
-	ns_sed_inplace -E 's,('${prefixPattern}${year}')-'${year}'([[:space:]]|$),\1\6,g' "${temporaryFile}"
+	# copyright xxxx-yyyy -> copyright xxxx
+	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})[[:space:]]*-[[:space:]]*[0-9]{4}([[:space:]]|$),\1\'${_postfixGroup}',g' "${temporaryFile}"
+	# copyright xxxx -> copyright xxxx-{year}
+	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})([[:space:]]|$),\1'"${yearRangeSeparator}${year}"'\'${_postfixGroup}',g' "${temporaryFile}"
+	# copyright {year}-{year} -> copyright {year}
+	ns_sed_inplace -E 's,('"${prefixPattern}${year}"')'"${yearRangeSeparator}${year}"'([[:space:]]|$),\1\'${_postfixGroup}',g' "${temporaryFile}"
 	
 	if ${ascii}
 	then
 		echo ascii
-		ns_sed_inplace -E 's,'${prefixPattern}',\1(c)\4,g' "${temporaryFile}"
+		ns_sed_inplace -E 's,'${prefixPattern}',\1(c)\'${asciiPatternGroupIndex}',g' "${temporaryFile}"
 	fi
 	
 	diff -q "${1}" "${temporaryFile}" 1>/dev/null 2>&1 || mv "${temporaryFile}" "${1}"
@@ -767,6 +1075,30 @@ trap on_exit EXIT
 
 year="$(date +'%Y')"
 temporaryFile="$(ns_mktemp ucy)"
+
+if [ ${prefixPatternGroupCount} -lt 0 ]
+then
+	p="${prefixPattern}"
+	p="$(sed -E 's,\\\\,,g;s,\\\(,,g;s,[^(],,g' <<< "${p}")"
+	prefixPatternGroupCount=$(echo -n "${p}" | wc -c)
+fi
+
+if [ ${asciiPatternGroupIndex} -lt 0 ]
+then
+	p="${prefixPattern}"
+	p="$(sed -E 's,\\\\,,g;s,\\\(,,g;s,[^(@],,g;s,(.*)@.*,\1,g' <<< "${p}")"
+	asciiPatternGroupIndex=$(echo -n "${p}" | wc -c)
+fi
+
+prefixPattern="$( sed 's,[[:space:]],[[:space:]],g' <<< "${prefixPattern}")"
+
+if ${preview}
+then
+	printf "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
+	printf "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
+	printf "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
+	#exit 0
+fi
 
 for path in "${parser_values[@]}"
 do

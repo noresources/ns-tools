@@ -34,8 +34,77 @@
 				<prg:short>r</prg:short>
 			</prg:names>
 		</prg:switch>
+		<prg:group>
+			<prg:documentation>
+				<prg:abstract>Advanced</prg:abstract>
+			</prg:documentation>
+			<prg:options>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>yearRangeSeparator</prg:variable>
+					</prg:databinding>
+					<prg:default> - </prg:default>
+					<prg:documentation>
+						<prg:abstract>Year range separator</prg:abstract>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>year-separator</prg:long>
+						<prg:short>Y</prg:short>
+					</prg:names>
+				</prg:argument>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>prefixPattern</prg:variable>
+					</prg:databinding>
+					<prg:default>((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)</prg:default>
+					<prg:documentation>
+						<prg:abstract>Copyright prefix pattern</prg:abstract>
+						<prg:details>POSIX sed pattern (-E)</prg:details>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>prefix-pattern</prg:long>
+						<prg:short>P</prg:short>
+					</prg:names>
+				</prg:argument>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>prefixPatternGroupCount</prg:variable>
+					</prg:databinding>
+					<prg:default>-1</prg:default>
+					<prg:documentation>
+						<prg:details>If -1, the group count is guessed from the prefix pattern</prg:details>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>prefix-group-count</prg:long>
+						<prg:short>C</prg:short>
+					</prg:names>
+				</prg:argument>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>asciiPatternGroupIndex</prg:variable>
+					</prg:databinding>
+					<prg:default>-1</prg:default>
+					<prg:documentation>
+						<prg:details>If -1, the group count is guessed from the prefix pattern</prg:details>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>ascii-group-index</prg:long>
+						<prg:short>A</prg:short>
+					</prg:names>
+				</prg:argument>
+			</prg:options>
+		</prg:group>
 		<!-- Help -->
 		<xi:include href="../ns-xml/ns/xsh/lib/options/options.xml" xpointer="xmlns(prg=http://xsd.nore.fr/program) xpointer(//prg:switch[@id = 'prg.option.displayHelp'])" />
+
+		<prg:switch>
+			<prg:databinding>
+				<prg:variable>preview</prg:variable>
+			</prg:databinding>
+			<prg:names>
+				<prg:long>preview</prg:long>
+			</prg:names>
+		</prg:switch>
 	</prg:options>
 	<prg:values>
 		<prg:other>
