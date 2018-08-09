@@ -11,19 +11,6 @@
 	<prg:options>
 		<prg:switch>
 			<prg:databinding>
-				<prg:variable>ascii</prg:variable>
-			</prg:databinding>
-			<prg:documentation>
-				<prg:abstract>ASCII copyright mark</prg:abstract>
-				<prg:details>Replace the copyright symbol "©" by the ASCII representation "(c)"</prg:details>
-			</prg:documentation>
-			<prg:names>
-				<prg:long>ascii</prg:long>
-				<prg:short>a</prg:short>
-			</prg:names>
-		</prg:switch>
-		<prg:switch>
-			<prg:databinding>
 				<prg:variable>recursive</prg:variable>
 			</prg:databinding>
 			<prg:documentation>
@@ -34,6 +21,18 @@
 				<prg:short>r</prg:short>
 			</prg:names>
 		</prg:switch>
+		<prg:multiargument>
+			<prg:databinding>
+				<prg:variable>filePatterns</prg:variable>
+			</prg:databinding>
+			<prg:documentation>
+				<prg:abstract>File patterns</prg:abstract>
+			</prg:documentation>
+			<prg:names>
+				<prg:long>pattern</prg:long>
+				<prg:short>p</prg:short>
+			</prg:names>
+		</prg:multiargument>
 		<prg:group>
 			<prg:documentation>
 				<prg:abstract>Advanced</prg:abstract>
@@ -79,6 +78,19 @@
 						<prg:short>C</prg:short>
 					</prg:names>
 				</prg:argument>
+				<prg:switch>
+					<prg:databinding>
+						<prg:variable>ascii</prg:variable>
+					</prg:databinding>
+					<prg:documentation>
+						<prg:abstract>ASCII copyright mark</prg:abstract>
+						<prg:details>Replace the copyright symbol "©" by the ASCII representation "(c)"</prg:details>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>ascii</prg:long>
+						<prg:short>a</prg:short>
+					</prg:names>
+				</prg:switch>
 				<prg:argument>
 					<prg:databinding>
 						<prg:variable>asciiPatternGroupIndex</prg:variable>
@@ -103,6 +115,14 @@
 			</prg:databinding>
 			<prg:names>
 				<prg:long>preview</prg:long>
+			</prg:names>
+		</prg:switch>
+		<prg:switch>
+			<prg:databinding>
+				<prg:variable>verbose</prg:variable>
+			</prg:databinding>
+			<prg:names>
+				<prg:long>verbose</prg:long>
 			</prg:names>
 		</prg:switch>
 	</prg:options>

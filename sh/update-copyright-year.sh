@@ -12,11 +12,10 @@ usage()
 cat << 'EOFUSAGE'
 update-copyright-year: Update copyright year
 Usage: 
-  update-copyright-year [-ar] [-Y <...> -P <...> -C <...> -A <...>] [--help] [--preview] [Path(s) ...]
+  update-copyright-year [-r] [-p <...  [ ... ]>] [[-a] -Y <...> -P <...> -C <...> -A <...>] [--help] [--preview] [--verbose] [Path(s) ...]
   Options:
-    -a, --ascii: ASCII copyright mark
-      Replace the copyright symbol "©" by the ASCII representation "(c)"
     -r, --recursive: Recursive
+    -p, --pattern: File patterns
     Advanced
       -Y, --year-separator: Year range separator  
         Default value:  - 
@@ -27,12 +26,15 @@ Usage:
       -C, --prefix-group-count: 
         If -1, the group count is guessed from the prefix pattern  
         Default value: -1
+      -a, --ascii: ASCII copyright mark
+        Replace the copyright symbol "©" by the ASCII representation "(c)"
       -A, --ascii-group-index: 
         If -1, the group count is guessed from the prefix pattern  
         Default value: -1
     
     --help: Display program usage
-    --preview:
+    --preview: 
+    --verbose:
   Positional arguments:
     1. Path(s)
 EOFUSAGE
@@ -73,10 +75,11 @@ parser_index=${parser_startindex}
 # (Subcommand required options will be added later)
 
 # Switch options
-ascii=false
 recursive=false
+ascii=false
 displayHelp=false
 preview=false
+verbose=false
 # Single argument options
 yearRangeSeparator=
 prefixPattern=
@@ -244,13 +247,13 @@ parse_setdefaultarguments()
 		fi
 	fi
 	# asciiPatternGroupIndex
-	if ! parse_isoptionpresent G_3_g_4_ascii_group_index
+	if ! parse_isoptionpresent G_3_g_5_ascii_group_index
 	then
 		parser_set_default=true
 		if ${parser_set_default}
 		then
 			asciiPatternGroupIndex='-1'
-			parse_setoptionpresence G_3_g_4_ascii_group_index;parse_setoptionpresence G_3_g
+			parse_setoptionpresence G_3_g_5_ascii_group_index;parse_setoptionpresence G_3_g
 		fi
 	fi
 }
@@ -372,16 +375,6 @@ parse_process_option()
 		fi
 		
 		case "${parser_option}" in
-		ascii)
-			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
-			then
-				parse_adderror "Option --${parser_option} does not allow an argument"
-				parser_optiontail=''
-				return ${PARSER_ERROR}
-			fi
-			ascii=true
-			parse_setoptionpresence G_1_ascii
-			;;
 		recursive)
 			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
 			then
@@ -390,7 +383,48 @@ parse_process_option()
 				return ${PARSER_ERROR}
 			fi
 			recursive=true
-			parse_setoptionpresence G_2_recursive
+			parse_setoptionpresence G_1_recursive
+			;;
+		pattern)
+			parser_item=''
+			${parser_optionhastail} && parser_item=${parser_optiontail}
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			local parser_ma_local_count=0
+			local parser_ma_total_count=${#filePatterns[*]}
+			if [ ! -z "${parser_item}" ]
+			then
+				filePatterns[$(expr ${#filePatterns[*]} + ${parser_startindex})]="${parser_item}"
+				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
+				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
+			fi
+			
+			local parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
+			while [ ! -z "${parser_nextitem}" ] && [ "${parser_nextitem}" != '--' ] && [ ${parser_index} -lt ${parser_itemcount} ]
+			do
+				if [ ${parser_ma_local_count} -gt 0 ] && [ "${parser_nextitem:0:1}" = "-" ]
+				then
+					break
+				fi
+				
+				parser_index=$(expr ${parser_index} + 1)
+				parser_item="${parser_input[${parser_index}]}"
+				[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+				filePatterns[$(expr ${#filePatterns[*]} + ${parser_startindex})]="${parser_item}"
+				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
+				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
+				parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
+			done
+			if [ ${parser_ma_local_count} -eq 0 ]
+			then
+				parse_adderror "At least one argument expected for option \"${parser_option}\""
+				return ${PARSER_ERROR}
+			fi
+			
+			parse_setoptionpresence G_2_pattern
 			;;
 		help)
 			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
@@ -411,6 +445,16 @@ parse_process_option()
 			fi
 			preview=true
 			parse_setoptionpresence G_5_preview
+			;;
+		verbose)
+			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
+			then
+				parse_adderror "Option --${parser_option} does not allow an argument"
+				parser_optiontail=''
+				return ${PARSER_ERROR}
+			fi
+			verbose=true
+			parse_setoptionpresence G_6_verbose
 			;;
 		year-separator)
 			# Group checks
@@ -499,6 +543,17 @@ parse_process_option()
 			prefixPatternGroupCount="${parser_item}"
 			parse_setoptionpresence G_3_g_3_prefix_group_count;parse_setoptionpresence G_3_g
 			;;
+		ascii)
+			# Group checks
+			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
+			then
+				parse_adderror "Option --${parser_option} does not allow an argument"
+				parser_optiontail=''
+				return ${PARSER_ERROR}
+			fi
+			ascii=true
+			parse_setoptionpresence G_3_g_4_ascii;parse_setoptionpresence G_3_g
+			;;
 		ascii-group-index)
 			# Group checks
 			if ${parser_optionhastail}
@@ -526,7 +581,7 @@ parse_process_option()
 			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
 			asciiPatternGroupIndex="${parser_item}"
-			parse_setoptionpresence G_3_g_4_ascii_group_index;parse_setoptionpresence G_3_g
+			parse_setoptionpresence G_3_g_5_ascii_group_index;parse_setoptionpresence G_3_g
 			;;
 		*)
 			parse_addfatalerror "Unknown option \"${parser_option}\""
@@ -545,13 +600,50 @@ parse_process_option()
 		fi
 		
 		case "${parser_option}" in
-		a)
-			ascii=true
-			parse_setoptionpresence G_1_ascii
-			;;
 		r)
 			recursive=true
-			parse_setoptionpresence G_2_recursive
+			parse_setoptionpresence G_1_recursive
+			;;
+		p)
+			parser_item=''
+			${parser_optionhastail} && parser_item=${parser_optiontail}
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			local parser_ma_local_count=0
+			local parser_ma_total_count=${#filePatterns[*]}
+			if [ ! -z "${parser_item}" ]
+			then
+				filePatterns[$(expr ${#filePatterns[*]} + ${parser_startindex})]="${parser_item}"
+				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
+				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
+			fi
+			
+			local parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
+			while [ ! -z "${parser_nextitem}" ] && [ "${parser_nextitem}" != '--' ] && [ ${parser_index} -lt ${parser_itemcount} ]
+			do
+				if [ ${parser_ma_local_count} -gt 0 ] && [ "${parser_nextitem:0:1}" = "-" ]
+				then
+					break
+				fi
+				
+				parser_index=$(expr ${parser_index} + 1)
+				parser_item="${parser_input[${parser_index}]}"
+				[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+				filePatterns[$(expr ${#filePatterns[*]} + ${parser_startindex})]="${parser_item}"
+				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
+				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
+				parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
+			done
+			if [ ${parser_ma_local_count} -eq 0 ]
+			then
+				parse_adderror "At least one argument expected for option \"${parser_option}\""
+				return ${PARSER_ERROR}
+			fi
+			
+			parse_setoptionpresence G_2_pattern
 			;;
 		Y)
 			# Group checks
@@ -640,6 +732,11 @@ parse_process_option()
 			prefixPatternGroupCount="${parser_item}"
 			parse_setoptionpresence G_3_g_3_prefix_group_count;parse_setoptionpresence G_3_g
 			;;
+		a)
+			# Group checks
+			ascii=true
+			parse_setoptionpresence G_3_g_4_ascii;parse_setoptionpresence G_3_g
+			;;
 		A)
 			# Group checks
 			if [ ! -z "${parser_optiontail}" ]
@@ -667,7 +764,7 @@ parse_process_option()
 			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
 			asciiPatternGroupIndex="${parser_item}"
-			parse_setoptionpresence G_3_g_4_ascii_group_index;parse_setoptionpresence G_3_g
+			parse_setoptionpresence G_3_g_5_ascii_group_index;parse_setoptionpresence G_3_g
 			;;
 		*)
 			parse_addfatalerror "Unknown option \"${parser_option}\""
@@ -1024,7 +1121,15 @@ ns_sed_inplace()
 }
 process_file()
 {
+	local _b="$(basename "${1}")"
 	local _postfixGroup="$(expr ${prefixPatternGroupCount} + 2)"
+	if [ "${_b:0:1}" = '.' ]; then info "Skip ${1}"; return 0; fi
+	
+	cols=50
+	ns_which -s tput && cols=$(expr $(tput cols) - 16) 
+	infof "%-${cols}.${cols}s" "${1}"
+	${preview} && info '' && return 0
+	 
 	cp -a "${1}" "${temporaryFile}"
 	# copyright xxxx-yyyy -> copyright xxxx
 	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})[[:space:]]*-[[:space:]]*[0-9]{4}([[:space:]]|$),\1\'${_postfixGroup}',g' "${temporaryFile}"
@@ -1035,15 +1140,51 @@ process_file()
 	
 	if ${ascii}
 	then
-		echo ascii
 		ns_sed_inplace -E 's,'${prefixPattern}',\1(c)\'${asciiPatternGroupIndex}',g' "${temporaryFile}"
 	fi
 	
-	diff -q "${1}" "${temporaryFile}" 1>/dev/null 2>&1 || mv "${temporaryFile}" "${1}"
+	if diff -q "${1}" "${temporaryFile}" 1>/dev/null 2>&1
+	then
+		info ': not changed'	
+	else
+		info ': changed'
+		mv "${temporaryFile}" "${1}"
+	fi
+}
+process_folder()
+{
+	local _b="$(basename "${1}")"
+	if [ "${_b:0:1}" = '.' ]; then info "Skip ${1}"; return 0; fi
+	info "${1}"
+	while read file
+	do
+		[ -z "${file}" ] && continue
+		process_file "${file}"
+	done << EOF
+$(find "${1}" -mindepth 1 -maxdepth 1 -type f "${findFilePatterns[@]}")
+EOF
+
+
+	while read directory
+	do
+		[ -z "${directory}" ] && continue
+		process_folder "${directory}"
+	done << EOF
+$(find "${1}" -mindepth 1 -maxdepth 1 -type d)
+EOF
+
 }
 on_exit()
 {
 	rm -f "${temporaryFile}"
+}
+info()
+{
+	${verbose} && echo "${@}"; return 0
+}
+infof()
+{
+	${verbose} && printf "${@}"; return 0
 }
 # Global variables
 scriptFilePath="$(ns_realpath "${0}")"
@@ -1094,26 +1235,41 @@ prefixPattern="$( sed 's,[[:space:]],[[:space:]],g' <<< "${prefixPattern}")"
 
 if ${preview}
 then
-	printf "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
-	printf "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
-	printf "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
-	#exit 0
+	infof "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
+	infof "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
+	infof "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
 fi
+
+unset findFilePatterns
+if [ ${#filePatterns[*]} -gt 0 ]
+then
+	for p in "${filePatterns[@]}"
+	do
+		if [ ${#findFilePatterns[*]} -gt 0 ]
+		then
+			findFilePatterns=("${findFilePatterns[@]}" -o)
+		fi
+		
+		findFilePatterns=("${findFilePatterns[@]}" -name "${p}")
+	done
+
+	if [ ${#filePatterns[*]} -gt 1 ]
+	then
+		findFilePatterns=('(' "${findFilePatterns[@]}" ')')
+	fi
+fi
+
+echo "${filePatterns[@]}"
+echo "${findFilePatterns[@]}" 
 
 for path in "${parser_values[@]}"
 do
+	path="$(ns_realpath "${path}")"
 	if [ -f "${path}" ]
 	then
 		process_file "${path}"
-	elif ${recursive}
+	elif [ -d "${path}" ] && ${recursive}
 	then
-		while read file
-		do
-			process_file "${file}"
-		done << EOF
-$(find "${path}" -type f)
-EOF
-	else
-		ns_error "Unable to process ${path}. Use --recursive option to process folders"
+		process_folder "${path}"
 	fi
 done

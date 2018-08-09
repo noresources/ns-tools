@@ -47,26 +47,41 @@ prefixPattern="$( sed 's,[[:space:]],[[:space:]],g' <<< "${prefixPattern}")"
 
 if ${preview}
 then
-	printf "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
-	printf "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
-	printf "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
-	#exit 0
+	infof "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
+	infof "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
+	infof "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
 fi
+
+unset findFilePatterns
+if [ ${#filePatterns[*]} -gt 0 ]
+then
+	for p in "${filePatterns[@]}"
+	do
+		if [ ${#findFilePatterns[*]} -gt 0 ]
+		then
+			findFilePatterns=("${findFilePatterns[@]}" -o)
+		fi
+		
+		findFilePatterns=("${findFilePatterns[@]}" -name "${p}")
+	done
+
+	if [ ${#filePatterns[*]} -gt 1 ]
+	then
+		findFilePatterns=('(' "${findFilePatterns[@]}" ')')
+	fi
+fi
+
+echo "${filePatterns[@]}"
+echo "${findFilePatterns[@]}" 
 
 for path in "${parser_values[@]}"
 do
+	path="$(ns_realpath "${path}")"
 	if [ -f "${path}" ]
 	then
 		process_file "${path}"
-	elif ${recursive}
+	elif [ -d "${path}" ] && ${recursive}
 	then
-		while read file
-		do
-			process_file "${file}"
-		done << EOF
-$(find "${path}" -type f)
-EOF
-	else
-		ns_error "Unable to process ${path}. Use --recursive option to process folders"
+		process_folder "${path}"
 	fi
 done
