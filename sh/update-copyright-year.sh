@@ -1259,9 +1259,6 @@ then
 	fi
 fi
 
-echo "${filePatterns[@]}"
-echo "${findFilePatterns[@]}" 
-
 for path in "${parser_values[@]}"
 do
 	path="$(ns_realpath "${path}")"
