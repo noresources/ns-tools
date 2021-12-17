@@ -50,18 +50,14 @@ PARSER_SC_OK=0
 PARSER_SC_ERROR=1
 PARSER_SC_UNKNOWN=2
 PARSER_SC_SKIP=3
-# Compatibility with shell which use "1" as start index
 [ "${parser_shell}" = 'zsh' ] && parser_startindex=1
 parser_itemcount=$(expr ${parser_startindex} + ${parser_itemcount})
 parser_index=${parser_startindex}
 
-# Required global options
-# (Subcommand required options will be added later)
+
 parser_required[$(expr ${#parser_required[*]} + ${parser_startindex})]="G_2_configuration:--configuration:"
 
-# Switch options
 displayHelp=false
-# Single argument options
 rootPath=
 configurationFolder=
 
@@ -121,24 +117,16 @@ function parse_addrequiredoption
 }
 function parse_setoptionpresence
 {
-	typeset var _e_found=false
-	typeset var _e=
-	for _e in "${parser_present[@]}"
-	do
-		if [ "${_e}" = "${1}" ]
-		then
-			_e_found=true; break
-		fi
-	done
-	if ${_e_found}
-	then
-		return
-	else
-		parser_present[$(expr ${#parser_present[*]} + ${parser_startindex})]="${1}"
-		case "${1}" in
-		
-		esac
-	fi
+	parse_isoptionpresent "${1}" && return 0
+	
+	case "${1}" in
+	
+	esac
+	case "${1}" in
+	
+	esac
+	parser_present[$(expr ${#parser_present[*]} + ${parser_startindex})]="${1}"
+	return 0
 }
 function parse_isoptionpresent
 {
@@ -160,13 +148,6 @@ function parse_isoptionpresent
 }
 function parse_checkrequired
 {
-	# First round: set default values
-	typeset var o=
-	for o in "${parser_required[@]}"
-	do
-		typeset var todoPart="$(echo "${o}" | cut -f 3 -d":")"
-		[ -z "${todoPart}" ] || eval "${todoPart}"
-	done
 	[ ${#parser_required[*]} -eq 0 ] && return 0
 	typeset var c=0
 	for o in "${parser_required[@]}"
@@ -190,25 +171,21 @@ function parse_checkrequired
 	done
 	return ${c}
 }
-function parse_setdefaultarguments
+function parse_setdefaultoptions
 {
-	typeset var parser_set_default=false
-	# rootPath
-	if ! parse_isoptionpresent G_1_root
+	local parser_set_default=false
+	
+	parser_set_default=true
+	parse_isoptionpresent G_1_root && parser_set_default=false
+	if ${parser_set_default}
 	then
-		parser_set_default=true
-		if ${parser_set_default}
-		then
-			rootPath='.'
-			parse_setoptionpresence G_1_root
-		fi
+		rootPath='.'
+		parse_setoptionpresence G_1_root
 	fi
 }
 function parse_checkminmax
 {
 	typeset var errorCount=0
-	# Check min argument for multiargument
-	
 	return ${errorCount}
 }
 function parse_numberlesserequalcheck
@@ -353,8 +330,10 @@ function parse_process_option
 				return ${PARSER_ERROR}
 			fi
 			
+			! parse_setoptionpresence G_1_root && return ${PARSER_ERROR}
+			
 			rootPath="${parser_item}"
-			parse_setoptionpresence G_1_root
+			
 			;;
 		configuration)
 			if ${parser_optionhastail}
@@ -399,10 +378,14 @@ function parse_process_option
 				return ${PARSER_ERROR}
 			fi
 			
+			! parse_setoptionpresence G_2_configuration && return ${PARSER_ERROR}
+			
 			configurationFolder="${parser_item}"
-			parse_setoptionpresence G_2_configuration
+			
 			;;
 		help)
+			! parse_setoptionpresence G_3_help && return ${PARSER_ERROR}
+			
 			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
 			then
 				parse_adderror "Option --${parser_option} does not allow an argument"
@@ -410,7 +393,7 @@ function parse_process_option
 				return ${PARSER_ERROR}
 			fi
 			displayHelp=true
-			parse_setoptionpresence G_3_help
+			
 			;;
 		*)
 			parse_addfatalerror "Unknown option \"${parser_option}\""
@@ -466,8 +449,10 @@ function parse_process_option
 				return ${PARSER_ERROR}
 			fi
 			
+			! parse_setoptionpresence G_1_root && return ${PARSER_ERROR}
+			
 			rootPath="${parser_item}"
-			parse_setoptionpresence G_1_root
+			
 			;;
 		c)
 			if [ ! -z "${parser_optiontail}" ]
@@ -512,8 +497,10 @@ function parse_process_option
 				return ${PARSER_ERROR}
 			fi
 			
+			! parse_setoptionpresence G_2_configuration && return ${PARSER_ERROR}
+			
 			configurationFolder="${parser_item}"
-			parse_setoptionpresence G_2_configuration
+			
 			;;
 		*)
 			parse_addfatalerror "Unknown option \"${parser_option}\""
@@ -552,10 +539,12 @@ function parse
 	
 	if ! ${parser_aborted}
 	then
-		parse_setdefaultarguments
+		parse_setdefaultoptions
 		parse_checkrequired
 		parse_checkminmax
 	fi
+	
+	
 	
 	
 	
@@ -639,7 +628,7 @@ function ns_relativepath
 	base="$(ns_realpath "${base}")"
 	c=0
 	sub="${base}"
-	newsub=""
+	newsub=''
 	while [ "${from:0:${#sub}}" != "${sub}" ]
 	do
 		newsub="$(dirname "${sub}")"
@@ -647,13 +636,14 @@ function ns_relativepath
 		sub="${newsub}"
 		c="$(expr ${c} + 1)"
 	done
-	res="."
+	res='.'
 	for ((i=0;${i}<${c};i++))
 	do
 		res="${res}/.."
 	done
 	res="${res}${from#${sub}}"
 	res="${res#./}"
+	[ -z "${res}" ] && res='.'
 	echo "${res}"
 }
 function ns_mktemp

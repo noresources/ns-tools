@@ -1,48 +1,38 @@
 #!/usr/bin/env bash
 # ####################################
-# Copyright © 2018 by renaud
-# Author: renaud
-# Version: 1.0.0
+# Copyright © 2014 by Renaud Guillard
+# Author: Renaud Guillard
+# Version: 1.0
 # 
-# Update copyright year
+# Find similar images in a given directory
 #
 # Program help
 usage()
 {
 cat << 'EOFUSAGE'
-update-copyright-year: Update copyright year
+find-similar-images: Find similar images in a given directory
 Usage: 
-  update-copyright-year [-r] [-p <...  [ ... ]>] [[-a] -Y <...> -P <...> -C <...> -A <...>] [--help] [--preview] [--verbose] [Path(s) ...]
+  find-similar-images -i <path> [-t <number>] [-o <path>] [--help]
   Options:
-    -r, --recursive: Recursive
-    -p, --pattern: File patterns
-    Advanced
-      -Y, --year-separator: Year range separator  
-        Default value:  - 
-      -P, --prefix-pattern: Copyright prefix pattern
-        POSIX sed pattern (-E)  
-        Default value: 
-        ((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)
-      -C, --prefix-group-count: 
-        If -1, the group count is guessed from the prefix pattern  
-        Default value: -1
-      -a, --ascii: ASCII copyright mark
-        Replace the copyright symbol "©" by the ASCII representation "(c)"
-      -A, --ascii-group-index: 
-        If -1, the group count is guessed from the prefix pattern  
-        Default value: -1
-    
+    -i, --input: Source image folder  
+      Default value: .
+    -t, --threshold: Similarity threshold
+      A image is similar to another if its similarity value is lesser than this 
+      parameter  
+      Default value: 0.2
+    -o, --output-file: Matching result output file
+      If set, output a file containing all similar image pairs
     --help: Display program usage
-    --preview: 
-    --verbose:
-  Positional arguments:
-    1. Path(s)
+  
+    Inspired by the script by Charalamapos Arapidis
+    http://fuzz-box.blogspot.be/2012/07/how-to-batch-identify-similar-images-i
+    n.html
 EOFUSAGE
 }
 
 # Program parameter parsing
-parser_program_author="renaud"
-parser_program_version="1.0.0"
+parser_program_author="Renaud Guillard"
+parser_program_version="1.0"
 if [ -r /proc/$$/exe ]
 then
 	parser_shell="$(readlink /proc/$$/exe | sed "s/.*\/\([a-z]*\)[0-9]*/\1/g")"
@@ -71,16 +61,12 @@ parser_itemcount=$(expr ${parser_startindex} + ${parser_itemcount})
 parser_index=${parser_startindex}
 
 
+parser_required[$(expr ${#parser_required[*]} + ${parser_startindex})]="G_1_input:--input:"
 
-recursive=false
-ascii=false
 displayHelp=false
-preview=false
-verbose=false
-yearRangeSeparator=
-prefixPattern=
-prefixPatternGroupCount=
-asciiPatternGroupIndex=
+inputDirectoryPath=
+threshold=
+outputFilePath=
 
 parse_addwarning()
 {
@@ -141,21 +127,9 @@ parse_setoptionpresence()
 	parse_isoptionpresent "${1}" && return 0
 	
 	case "${1}" in
-	G_3_g_1_year_separator)
-		;;
-	G_3_g_2_prefix_pattern)
-		;;
-	G_3_g_3_prefix_group_count)
-		;;
-	G_3_g_4_ascii)
-		;;
-	G_3_g_5_ascii_group_index)
-		;;
 	
 	esac
 	case "${1}" in
-	G_3_g)
-		;;
 	
 	esac
 	parser_present[$(expr ${#parser_present[*]} + ${parser_startindex})]="${1}"
@@ -209,42 +183,20 @@ parse_setdefaultoptions()
 	local parser_set_default=false
 	
 	parser_set_default=true
-	parse_isoptionpresent G_3_g_1_year_separator && parser_set_default=false
+	parse_isoptionpresent G_1_input && parser_set_default=false
 	if ${parser_set_default}
 	then
-		yearRangeSeparator=' - '
-		parse_setoptionpresence G_3_g_1_year_separator
-		parse_setoptionpresence G_3_g
+		inputDirectoryPath='.'
+		parse_setoptionpresence G_1_input
 	fi
 	
 	
 	parser_set_default=true
-	parse_isoptionpresent G_3_g_2_prefix_pattern && parser_set_default=false
+	parse_isoptionpresent G_2_threshold && parser_set_default=false
 	if ${parser_set_default}
 	then
-		prefixPattern='((C|c)opyright[[:space:]][[:space:]]*)(©|\(c\))([[:space:]][[:space:]]*)'
-		parse_setoptionpresence G_3_g_2_prefix_pattern
-		parse_setoptionpresence G_3_g
-	fi
-	
-	
-	parser_set_default=true
-	parse_isoptionpresent G_3_g_3_prefix_group_count && parser_set_default=false
-	if ${parser_set_default}
-	then
-		prefixPatternGroupCount='-1'
-		parse_setoptionpresence G_3_g_3_prefix_group_count
-		parse_setoptionpresence G_3_g
-	fi
-	
-	
-	parser_set_default=true
-	parse_isoptionpresent G_3_g_5_ascii_group_index && parser_set_default=false
-	if ${parser_set_default}
-	then
-		asciiPatternGroupIndex='-1'
-		parse_setoptionpresence G_3_g_5_ascii_group_index
-		parse_setoptionpresence G_3_g
+		threshold='0.2'
+		parse_setoptionpresence G_2_threshold
 	fi
 }
 parse_checkminmax()
@@ -292,24 +244,10 @@ parse_addvalue()
 	shift
 	if [ -z "${parser_subcommand}" ]
 	then
-		case "${position}" in
-		*)
-			if [ ! -e "${value}" ]
-			then
-				parse_adderror "Invalid path \"${value}\" for positional argument ${position}"
-				return ${PARSER_ERROR}
-			fi
-			
-			if [ -a "${value}" ] && ! ([ -f "${value}" ] || [ -d "${value}" ])
-			then
-				parse_adderror "Invalid patn type for positional argument ${position}"
-				return ${PARSER_ERROR}
-			fi
-			
-			
-			;;
+		${parser_isfirstpositionalargument} && parser_errors[$(expr ${#parser_errors[*]} + ${parser_startindex})]='Program does not accept positional arguments'
 		
-		esac
+		parser_isfirstpositionalargument=false
+		return ${PARSER_ERROR}
 	else
 		case "${parser_subcommand}" in
 		*)
@@ -368,64 +306,123 @@ parse_process_option()
 		fi
 		
 		case "${parser_option}" in
-		recursive)
-			! parse_setoptionpresence G_1_recursive && return ${PARSER_ERROR}
-			
-			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
+		input)
+			if ${parser_optionhastail}
 			then
-				parse_adderror "Option --${parser_option} does not allow an argument"
-				parser_optiontail=''
-				return ${PARSER_ERROR}
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
 			fi
-			recursive=true
-			
-			;;
-		pattern)
-			parser_item=''
-			${parser_optionhastail} && parser_item=${parser_optiontail}
 			
 			parser_subindex=0
 			parser_optiontail=''
 			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			local parser_ma_values=
-			local parser_ma_local_count=0
-			local parser_ma_total_count=${#filePatterns[*]}
-			unset parser_ma_values
-			if [ ! -z "${parser_item}" ]
+			if [ ! -e "${parser_item}" ]
 			then
-				parser_ma_values[$(expr ${#parser_ma_values[*]} + ${parser_startindex})]="${parser_item}"
-				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
-				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
-			fi
-			
-			local parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
-			while [ ! -z "${parser_nextitem}" ] && [ "${parser_nextitem}" != '--' ] && [ ${parser_index} -lt ${parser_itemcount} ]
-			do
-				if [ ${parser_ma_local_count} -gt 0 ] && [ "${parser_nextitem:0:1}" = "-" ]
-				then
-					break
-				fi
-				
-				parser_index=$(expr ${parser_index} + 1)
-				parser_item="${parser_input[${parser_index}]}"
-				[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-				parser_ma_values[$(expr ${#parser_ma_values[*]} + ${parser_startindex})]="${parser_item}"
-				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
-				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
-				parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
-			done
-			if [ ${parser_ma_local_count} -eq 0 ]
-			then
-				parse_adderror "At least one argument expected for option \"${parser_option}\""
+				parse_adderror "Invalid path \"${parser_item}\" for option \"${parser_option}\""
 				return ${PARSER_ERROR}
 			fi
-			! parse_setoptionpresence G_2_pattern && return ${PARSER_ERROR}
 			
-			for ((i=$(expr 0 + ${parser_startindex});${i}<$(expr ${#parser_ma_values[*]} + ${parser_startindex});i++))
-			do
-				filePatterns[${#filePatterns[*]}]="${parser_ma_values[${i}]}"
-			done
+			if [ -a "${parser_item}" ] && ! ([ -d "${parser_item}" ])
+			then
+				parse_adderror "Invalid patn type for option \"${parser_option}\""
+				return ${PARSER_ERROR}
+			fi
+			
+			! parse_setoptionpresence G_1_input && return ${PARSER_ERROR}
+			
+			inputDirectoryPath="${parser_item}"
+			
+			;;
+		threshold)
+			if ${parser_optionhastail}
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			if ! echo -n "${parser_item}" | grep -E "\-?[0-9]+(\.[0-9]+)*" 1>/dev/null 2>&1
+			then
+				parse_adderror "Invalid value \"${parser_item}\" for option \"${parser_option}\". Number expected"
+				return ${PARSER_ERROR}
+			else
+				if ! parse_numberlesserequalcheck 0 ${parser_item}
+				then
+					parse_adderror "Invalid value \"${parser_item}\" for option \"${parser_option}\". Number expected"
+					return ${PARSER_ERROR}
+				fi
+				if ! parse_numberlesserequalcheck ${parser_item} 1
+				then
+					parse_adderror "Invalid value \"${parser_item}\" for option \"${parser_option}\". Number expected"
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			! parse_setoptionpresence G_2_threshold && return ${PARSER_ERROR}
+			
+			threshold="${parser_item}"
+			
+			;;
+		output-file)
+			if ${parser_optionhastail}
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
+			
+			parser_subindex=0
+			parser_optiontail=''
+			parser_optionhastail=false
+			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
+			! parse_setoptionpresence G_3_output_file && return ${PARSER_ERROR}
+			
+			outputFilePath="${parser_item}"
 			
 			;;
 		help)
@@ -438,172 +435,6 @@ parse_process_option()
 				return ${PARSER_ERROR}
 			fi
 			displayHelp=true
-			
-			;;
-		preview)
-			! parse_setoptionpresence G_5_preview && return ${PARSER_ERROR}
-			
-			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
-			then
-				parse_adderror "Option --${parser_option} does not allow an argument"
-				parser_optiontail=''
-				return ${PARSER_ERROR}
-			fi
-			preview=true
-			
-			;;
-		verbose)
-			! parse_setoptionpresence G_6_verbose && return ${PARSER_ERROR}
-			
-			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
-			then
-				parse_adderror "Option --${parser_option} does not allow an argument"
-				parser_optiontail=''
-				return ${PARSER_ERROR}
-			fi
-			verbose=true
-			
-			;;
-		year-separator)
-			if ${parser_optionhastail}
-			then
-				parser_item=${parser_optiontail}
-			else
-				parser_index=$(expr ${parser_index} + 1)
-				if [ ${parser_index} -ge ${parser_itemcount} ]
-				then
-					parse_adderror "End of input reached - Argument expected"
-					return ${PARSER_ERROR}
-				fi
-				
-				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = '--' ]
-				then
-					parse_adderror "End of option marker found - Argument expected"
-					parser_index=$(expr ${parser_index} - 1)
-					return ${PARSER_ERROR}
-				fi
-			fi
-			
-			parser_subindex=0
-			parser_optiontail=''
-			parser_optionhastail=false
-			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_1_year_separator && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			yearRangeSeparator="${parser_item}"
-			
-			;;
-		prefix-pattern)
-			if ${parser_optionhastail}
-			then
-				parser_item=${parser_optiontail}
-			else
-				parser_index=$(expr ${parser_index} + 1)
-				if [ ${parser_index} -ge ${parser_itemcount} ]
-				then
-					parse_adderror "End of input reached - Argument expected"
-					return ${PARSER_ERROR}
-				fi
-				
-				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = '--' ]
-				then
-					parse_adderror "End of option marker found - Argument expected"
-					parser_index=$(expr ${parser_index} - 1)
-					return ${PARSER_ERROR}
-				fi
-			fi
-			
-			parser_subindex=0
-			parser_optiontail=''
-			parser_optionhastail=false
-			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_2_prefix_pattern && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			prefixPattern="${parser_item}"
-			
-			;;
-		prefix-group-count)
-			if ${parser_optionhastail}
-			then
-				parser_item=${parser_optiontail}
-			else
-				parser_index=$(expr ${parser_index} + 1)
-				if [ ${parser_index} -ge ${parser_itemcount} ]
-				then
-					parse_adderror "End of input reached - Argument expected"
-					return ${PARSER_ERROR}
-				fi
-				
-				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = '--' ]
-				then
-					parse_adderror "End of option marker found - Argument expected"
-					parser_index=$(expr ${parser_index} - 1)
-					return ${PARSER_ERROR}
-				fi
-			fi
-			
-			parser_subindex=0
-			parser_optiontail=''
-			parser_optionhastail=false
-			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_3_prefix_group_count && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			prefixPatternGroupCount="${parser_item}"
-			
-			;;
-		ascii)
-			! parse_setoptionpresence G_3_g_4_ascii && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			if ${parser_optionhastail} && [ ! -z "${parser_optiontail}" ]
-			then
-				parse_adderror "Option --${parser_option} does not allow an argument"
-				parser_optiontail=''
-				return ${PARSER_ERROR}
-			fi
-			ascii=true
-			
-			;;
-		ascii-group-index)
-			if ${parser_optionhastail}
-			then
-				parser_item=${parser_optiontail}
-			else
-				parser_index=$(expr ${parser_index} + 1)
-				if [ ${parser_index} -ge ${parser_itemcount} ]
-				then
-					parse_adderror "End of input reached - Argument expected"
-					return ${PARSER_ERROR}
-				fi
-				
-				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = '--' ]
-				then
-					parse_adderror "End of option marker found - Argument expected"
-					parser_index=$(expr ${parser_index} - 1)
-					return ${PARSER_ERROR}
-				fi
-			fi
-			
-			parser_subindex=0
-			parser_optiontail=''
-			parser_optionhastail=false
-			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_5_ascii_group_index && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			asciiPatternGroupIndex="${parser_item}"
 			
 			;;
 		*)
@@ -623,61 +454,49 @@ parse_process_option()
 		fi
 		
 		case "${parser_option}" in
-		r)
-			! parse_setoptionpresence G_1_recursive && return ${PARSER_ERROR}
-			
-			recursive=true
-			
-			;;
-		p)
-			parser_item=''
-			${parser_optionhastail} && parser_item=${parser_optiontail}
+		i)
+			if [ ! -z "${parser_optiontail}" ]
+			then
+				parser_item=${parser_optiontail}
+			else
+				parser_index=$(expr ${parser_index} + 1)
+				if [ ${parser_index} -ge ${parser_itemcount} ]
+				then
+					parse_adderror "End of input reached - Argument expected"
+					return ${PARSER_ERROR}
+				fi
+				
+				parser_item="${parser_input[${parser_index}]}"
+				if [ "${parser_item}" = '--' ]
+				then
+					parse_adderror "End of option marker found - Argument expected"
+					parser_index=$(expr ${parser_index} - 1)
+					return ${PARSER_ERROR}
+				fi
+			fi
 			
 			parser_subindex=0
 			parser_optiontail=''
 			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			local parser_ma_values=
-			local parser_ma_local_count=0
-			local parser_ma_total_count=${#filePatterns[*]}
-			unset parser_ma_values
-			if [ ! -z "${parser_item}" ]
+			if [ ! -e "${parser_item}" ]
 			then
-				parser_ma_values[$(expr ${#parser_ma_values[*]} + ${parser_startindex})]="${parser_item}"
-				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
-				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
-			fi
-			
-			local parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
-			while [ ! -z "${parser_nextitem}" ] && [ "${parser_nextitem}" != '--' ] && [ ${parser_index} -lt ${parser_itemcount} ]
-			do
-				if [ ${parser_ma_local_count} -gt 0 ] && [ "${parser_nextitem:0:1}" = "-" ]
-				then
-					break
-				fi
-				
-				parser_index=$(expr ${parser_index} + 1)
-				parser_item="${parser_input[${parser_index}]}"
-				[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-				parser_ma_values[$(expr ${#parser_ma_values[*]} + ${parser_startindex})]="${parser_item}"
-				parser_ma_total_count=$(expr ${parser_ma_total_count} + 1)
-				parser_ma_local_count=$(expr ${parser_ma_local_count} + 1)
-				parser_nextitem="${parser_input[$(expr ${parser_index} + 1)]}"
-			done
-			if [ ${parser_ma_local_count} -eq 0 ]
-			then
-				parse_adderror "At least one argument expected for option \"${parser_option}\""
+				parse_adderror "Invalid path \"${parser_item}\" for option \"${parser_option}\""
 				return ${PARSER_ERROR}
 			fi
-			! parse_setoptionpresence G_2_pattern && return ${PARSER_ERROR}
 			
-			for ((i=$(expr 0 + ${parser_startindex});${i}<$(expr ${#parser_ma_values[*]} + ${parser_startindex});i++))
-			do
-				filePatterns[${#filePatterns[*]}]="${parser_ma_values[${i}]}"
-			done
+			if [ -a "${parser_item}" ] && ! ([ -d "${parser_item}" ])
+			then
+				parse_adderror "Invalid patn type for option \"${parser_option}\""
+				return ${PARSER_ERROR}
+			fi
+			
+			! parse_setoptionpresence G_1_input && return ${PARSER_ERROR}
+			
+			inputDirectoryPath="${parser_item}"
 			
 			;;
-		Y)
+		t)
 			if [ ! -z "${parser_optiontail}" ]
 			then
 				parser_item=${parser_optiontail}
@@ -702,14 +521,29 @@ parse_process_option()
 			parser_optiontail=''
 			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_1_year_separator && return ${PARSER_ERROR}
+			if ! echo -n "${parser_item}" | grep -E "\-?[0-9]+(\.[0-9]+)*" 1>/dev/null 2>&1
+			then
+				parse_adderror "Invalid value \"${parser_item}\" for option \"${parser_option}\". Number expected"
+				return ${PARSER_ERROR}
+			else
+				if ! parse_numberlesserequalcheck 0 ${parser_item}
+				then
+					parse_adderror "Invalid value \"${parser_item}\" for option \"${parser_option}\". Number expected"
+					return ${PARSER_ERROR}
+				fi
+				if ! parse_numberlesserequalcheck ${parser_item} 1
+				then
+					parse_adderror "Invalid value \"${parser_item}\" for option \"${parser_option}\". Number expected"
+					return ${PARSER_ERROR}
+				fi
+			fi
 			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
+			! parse_setoptionpresence G_2_threshold && return ${PARSER_ERROR}
 			
-			yearRangeSeparator="${parser_item}"
+			threshold="${parser_item}"
 			
 			;;
-		P)
+		o)
 			if [ ! -z "${parser_optiontail}" ]
 			then
 				parser_item=${parser_optiontail}
@@ -734,83 +568,9 @@ parse_process_option()
 			parser_optiontail=''
 			parser_optionhastail=false
 			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_2_prefix_pattern && return ${PARSER_ERROR}
+			! parse_setoptionpresence G_3_output_file && return ${PARSER_ERROR}
 			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			prefixPattern="${parser_item}"
-			
-			;;
-		C)
-			if [ ! -z "${parser_optiontail}" ]
-			then
-				parser_item=${parser_optiontail}
-			else
-				parser_index=$(expr ${parser_index} + 1)
-				if [ ${parser_index} -ge ${parser_itemcount} ]
-				then
-					parse_adderror "End of input reached - Argument expected"
-					return ${PARSER_ERROR}
-				fi
-				
-				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = '--' ]
-				then
-					parse_adderror "End of option marker found - Argument expected"
-					parser_index=$(expr ${parser_index} - 1)
-					return ${PARSER_ERROR}
-				fi
-			fi
-			
-			parser_subindex=0
-			parser_optiontail=''
-			parser_optionhastail=false
-			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_3_prefix_group_count && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			prefixPatternGroupCount="${parser_item}"
-			
-			;;
-		a)
-			! parse_setoptionpresence G_3_g_4_ascii && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			ascii=true
-			
-			;;
-		A)
-			if [ ! -z "${parser_optiontail}" ]
-			then
-				parser_item=${parser_optiontail}
-			else
-				parser_index=$(expr ${parser_index} + 1)
-				if [ ${parser_index} -ge ${parser_itemcount} ]
-				then
-					parse_adderror "End of input reached - Argument expected"
-					return ${PARSER_ERROR}
-				fi
-				
-				parser_item="${parser_input[${parser_index}]}"
-				if [ "${parser_item}" = '--' ]
-				then
-					parse_adderror "End of option marker found - Argument expected"
-					parser_index=$(expr ${parser_index} - 1)
-					return ${PARSER_ERROR}
-				fi
-			fi
-			
-			parser_subindex=0
-			parser_optiontail=''
-			parser_optionhastail=false
-			[ "${parser_item:0:2}" = "\-" ] && parser_item="${parser_item:1}"
-			! parse_setoptionpresence G_3_g_5_ascii_group_index && return ${PARSER_ERROR}
-			
-			! parse_setoptionpresence G_3_g && return ${PARSER_ERROR}
-			
-			asciiPatternGroupIndex="${parser_item}"
+			outputFilePath="${parser_item}"
 			
 			;;
 		*)
@@ -856,8 +616,6 @@ parse()
 	fi
 	
 	
-	[ "${parser_option_G_3_g:0:1}" = '@' ] && parser_option_G_3_g=''
-	parser_option_G_3_g=''
 	
 	
 	
@@ -1128,122 +886,10 @@ ns_which()
 	fi
 	return ${result}
 }
-ns_sed_inplace()
-{
-	local inplaceOptionForm=
-	if [ -z "${__ns_sed_inplace_inplaceOptionForm}" ]
-	then
-		if [ "$(uname -s)" = 'Darwin' ]
-		then
-			if [ "$(which sed 2>/dev/null)" = '/usr/bin/sed' ]
-			then
-				inplaceOptionForm='arg'			
-			fi 
-		fi
-		
-		if [ -z "${inplaceOptionForm}" ]
-		then
-			# Attempt to guess it from help
-			if sed --helo 2>&1 | grep -q '\-i\[SUFFIX\]'
-			then
-				inplaceOptionForm='nested'
-			elif sed --helo 2>&1 | grep -q '\-i extension'
-			then
-				inplaceOptionForm='arg'
-			else
-				inplaceOptionForm='noarg'
-			fi
-		fi
-	else
-		inplaceOptionForm="${__ns_sed_inplace_inplaceOptionForm}"
-	fi
-	
-	# Store for later use
-	__ns_sed_inplace_inplaceOptionForm="${inplaceOptionForm}"
-	
-	if [ "${inplaceOptionForm}" = 'nested' ]
-	then
-		sed -i'' "${@}"
-	elif [ "${inplaceOptionForm}" = 'arg' ]
-	then
-		sed -i '' "${@}"
-	else
-		sed -i "${@}"
-	fi
-}
-process_file()
-{
-	local _b="$(basename "${1}")"
-	local _postfixGroup="$(expr ${prefixPatternGroupCount} + 2)"
-	if [ "${_b:0:1}" = '.' ]; then info "Skip ${1}"; return 0; fi
-	
-	cols=50
-	ns_which -s tput && cols=$(expr $(tput cols) - 16) 
-	infof "%-${cols}.${cols}s" "${1}"
-	${preview} && info '' && return 0
-	 
-	cp -a "${1}" "${temporaryFile}"
-	# copyright xxxx-yyyy -> copyright xxxx
-	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})[[:space:]]*-[[:space:]]*[0-9]{4}([[:space:]]|$),\1\'${_postfixGroup}',g' "${temporaryFile}"
-	# copyright xxxx -> copyright xxxx-{year}
-	ns_sed_inplace -E 's,('${prefixPattern}'[0-9]{4})([[:space:]]|$),\1'"${yearRangeSeparator}${year}"'\'${_postfixGroup}',g' "${temporaryFile}"
-	# copyright {year}-{year} -> copyright {year}
-	ns_sed_inplace -E 's,('"${prefixPattern}${year}"')'"${yearRangeSeparator}${year}"'([[:space:]]|$),\1\'${_postfixGroup}',g' "${temporaryFile}"
-	
-	if ${ascii}
-	then
-		ns_sed_inplace -E 's,'${prefixPattern}',\1(c)\'${asciiPatternGroupIndex}',g' "${temporaryFile}"
-	fi
-	
-	if diff -q "${1}" "${temporaryFile}" 1>/dev/null 2>&1
-	then
-		info ': not changed'	
-	else
-		info ': changed'
-		mv "${temporaryFile}" "${1}"
-	fi
-}
-process_folder()
-{
-	local _b="$(basename "${1}")"
-	if [ "${_b:0:1}" = '.' ]; then info "Skip ${1}"; return 0; fi
-	info "${1}"
-	while read file
-	do
-		[ -z "${file}" ] && continue
-		process_file "${file}"
-	done << EOF
-$(find "${1}" -mindepth 1 -maxdepth 1 -type f "${findFilePatterns[@]}")
-EOF
-
-
-	while read directory
-	do
-		[ -z "${directory}" ] && continue
-		process_folder "${directory}"
-	done << EOF
-$(find "${1}" -mindepth 1 -maxdepth 1 -type d)
-EOF
-
-}
-on_exit()
-{
-	rm -f "${temporaryFile}"
-}
-info()
-{
-	${verbose} && echo "${@}"; return 0
-}
-infof()
-{
-	${verbose} && printf "${@}"; return 0
-}
-# Global variables
 scriptFilePath="$(ns_realpath "${0}")"
 scriptPath="$(dirname "${scriptFilePath}")"
-scriptName="$(basename "${scriptFilePath}")"
+cwd="$(pwd)"
 
-# Option parsing
 if ! parse "${@}"
 then
 	if ${displayHelp}
@@ -1262,63 +908,99 @@ then
 	exit 0
 fi
 
-# Main code
+# Check required programs
+for p in identify puzzle-diff bc
+do
+	which "${p}" 1>/dev/null 2>&1 || error 1 "${p} not found"
+done
 
-trap on_exit EXIT
-
-year="$(date +'%Y')"
-temporaryFile="$(ns_mktemp ucy)"
-
-if [ ${prefixPatternGroupCount} -lt 0 ]
+if [ ! -z "${outputFilePath}" ]
 then
-	p="${prefixPattern}"
-	p="$(sed -E 's,\\\\,,g;s,\\\(,,g;s,[^(],,g' <<< "${p}")"
-	prefixPatternGroupCount=$(echo -n "${p}" | wc -c)
+	if [ -f "${outputFilePath}" ]
+	then
+		rm -f "${outputFilePath}" || error 2 "Unable to create output file '${outputFilePath}'"
+	fi
+	
+	touch "${outputFilePath}" || error 2 "Unable to create output file '${outputFilePath}'"
 fi
 
-if [ ${asciiPatternGroupIndex} -lt 0 ]
-then
-	p="${prefixPattern}"
-	p="$(sed -E 's,\\\\,,g;s,\\\(,,g;s,[^(@],,g;s,(.*)@.*,\1,g' <<< "${p}")"
-	asciiPatternGroupIndex=$(echo -n "${p}" | wc -c)
-fi
+# Get the image list
+while read file
+do
+	if identify -quiet -ping "${file}" >/dev/null 2>/dev/null
+	then
+		images[$count]="${file}"
+		let count++
+	fi
+done << EOF
+$(find "${inputDirectoryPath}" -type f | sort)
+EOF
 
-prefixPattern="$( sed 's,[[:space:]],[[:space:]],g' <<< "${prefixPattern}")"
+imageCount=${#images[@]}
+count=0
+echo "${imageCount} images"
 
-if ${preview}
-then
-	infof "%-30.30s : %s\n" 'prefix pattern' "${prefixPattern}"
-	infof "%-30.30s : %s\n" 'prefix group count' ${prefixPatternGroupCount}
-	infof "%-30.30s : %s\n" 'ascii pattern group' ${asciiPatternGroupIndex}
-fi
-
-unset findFilePatterns
-if [ ${#filePatterns[*]} -gt 0 ]
-then
-	for p in "${filePatterns[@]}"
-	do
-		if [ ${#findFilePatterns[*]} -gt 0 ]
+i=${parser_startindex}
+for source in "${images[@]}" 
+do
+	start=$(expr ${i} + 1)
+	i=${start}
+	
+	echo -n "$(basename "${source}")"
+	sourceDimension="$(identify -format "(%w/%h)" ${source} 2>/dev/null)"
+	if [ -z "${sourceDimension}" ]
+	then
+		echo ": unable to get dimension"
+		continue
+	fi
+	
+	sourceAspectRatio="$(echo "scale=2;${sourceDimension}" | bc -l)"
+	if [ -z "${sourceAspectRatio}" ]
+	then
+		echo ": unable to compute aspect ratio"
+		continue
+	fi
+	
+	echo " ${sourceDimension}" | sed 's,/,x,g'
+	
+ 	for ((j=${start}; ${j}<$(expr ${imageCount} + ${parser_startindex}); j++)) 
+ 	do
+  		target=${images[${j}]}
+  		
+  		echo -en "\t$(basename "${target}")"
+  		
+  		targetDimension="$(identify -format "(%w/%h)" ${target})"
+  		
+  		if [ -z "${targetDimension}" ]
 		then
-			findFilePatterns=("${findFilePatterns[@]}" -o)
+			echo ": unable to get dimension"
+			continue
 		fi
 		
-		findFilePatterns=("${findFilePatterns[@]}" -name "${p}")
-	done
-
-	if [ ${#filePatterns[*]} -gt 1 ]
-	then
-		findFilePatterns=('(' "${findFilePatterns[@]}" ')')
-	fi
-fi
-
-for path in "${parser_values[@]}"
-do
-	path="$(ns_realpath "${path}")"
-	if [ -f "${path}" ]
-	then
-		process_file "${path}"
-	elif [ -d "${path}" ] && ${recursive}
-	then
-		process_folder "${path}"
-	fi
+		echo -n " ${targetDimension}" | sed 's,/,x,g'
+  		 		
+  		targetAspectRatio="$(echo "scale=2;${targetDimension}" | bc -l)"
+  		if [ -z "${targetAspectRatio}" ]
+		then
+			echo ": unable to compute aspect ratio"
+			continue
+		fi
+		
+		ratio="$(echo "scale=2;${sourceAspectRatio} - ${targetAspectRatio}" | bc -l | sed 's,-,,g')"
+		
+		if [ "${ratio}" = '0' ]
+		then
+			diff="$(puzzle-diff "${source}" "${target}")"
+			if [ ! -z "${diff}" ] && [ "$(echo "${diff} < ${threshold}" | bc -l)" = "1" ]
+			then
+				echo " match"
+				[ -z "${outputFilePath}" ] \
+					|| echo -e "${source}\t${target}" >> "${outputFilePath}"
+			else
+				echo " does not match"
+			fi
+		else
+			echo " ratio differ"
+		fi
+ 	done
 done
