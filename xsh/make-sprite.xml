@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<prg:program xmlns:prg="http://xsd.nore.fr/program" xmlns:xi="http://www.w3.org/2001/XInclude" version="2.0">
+	<prg:name>make-sprite</prg:name>
+	<prg:author>renaud</prg:author>
+	<prg:version>1.0.0</prg:version>
+	<prg:copyright>Copyright © 2021 by renaud</prg:copyright>
+	<prg:documentation>
+		<prg:abstract>make-sprite short description</prg:abstract>
+	</prg:documentation>
+	<prg:options>
+		<prg:group>
+			<prg:documentation>
+				<prg:abstract>Input</prg:abstract>
+			</prg:documentation>
+			<prg:options>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>inputDirectory</prg:variable>
+					</prg:databinding>
+					<prg:documentation>
+						<prg:abstract>Input directory</prg:abstract>
+					</prg:documentation>
+					<prg:type>
+						<prg:path exist="true">
+							<prg:kinds>
+								<prg:folder />
+							</prg:kinds>
+						</prg:path>
+					</prg:type>
+					<prg:names>
+						<prg:long>input</prg:long>
+						<prg:short>i</prg:short>
+					</prg:names>
+				</prg:argument>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>inputFilenamePattern</prg:variable>
+					</prg:databinding>
+					<prg:documentation>
+						<prg:abstract>Input filename pattern</prg:abstract>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>pattern</prg:long>
+						<prg:short>p</prg:short>
+					</prg:names>
+				</prg:argument>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>inputStartNumber</prg:variable>
+					</prg:databinding>
+					<prg:default>1</prg:default>
+					<prg:documentation>
+						<prg:abstract>First image number</prg:abstract>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>from</prg:long>
+					</prg:names>
+					<prg:type>
+						<prg:number min="0" />
+					</prg:type>
+				</prg:argument>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>inputLastNumber</prg:variable>
+					</prg:databinding>
+					<prg:documentation>
+						<prg:abstract>Last image number</prg:abstract>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>to</prg:long>
+					</prg:names>
+				</prg:argument>
+			</prg:options>
+		</prg:group>
+		<prg:group>
+			<prg:documentation>
+				<prg:abstract>Output</prg:abstract>
+			</prg:documentation>
+			<prg:options>
+				<prg:argument>
+					<prg:databinding>
+						<prg:variable>outputFilename</prg:variable>
+					</prg:databinding>
+					<prg:documentation>
+						<prg:abstract>Output filename</prg:abstract>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>output</prg:long>
+						<prg:short>o</prg:short>
+					</prg:names>
+				</prg:argument>
+				<prg:switch>
+					<prg:databinding>
+						<prg:variable>outputMetadata</prg:variable>
+					</prg:databinding>
+					<prg:documentation>
+						<prg:abstract>Output metadata</prg:abstract>
+						<prg:details>Create a JSON file alongside output image file
+							containing sprite informations
+						</prg:details>
+					</prg:documentation>
+					<prg:names>
+						<prg:long>metadata</prg:long>
+						<prg:long>json</prg:long>
+						<prg:short>m</prg:short>
+					</prg:names>
+				</prg:switch>
+			</prg:options>
+		</prg:group>
+
+		<xi:include href="../ns-xml/ns/xsh/lib/options/options.xml" xpointer="xmlns(prg=http://xsd.nore.fr/program) xpointer(//prg:switch[@id = 'prg.option.displayVersion'])" />
+		<xi:include href="../ns-xml/ns/xsh/lib/options/options.xml" xpointer="xmlns(prg=http://xsd.nore.fr/program) xpointer(//prg:switch[@id = 'prg.option.displayHelp'])" />
+	</prg:options>
+</prg:program>
